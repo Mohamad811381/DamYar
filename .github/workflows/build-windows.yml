@@ -1,0 +1,51 @@
+name: Build Windows (Manual)
+
+on:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.50.0"
+
+jobs:
+  build-windows:
+    name: Build Windows Desktop (Release)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      - name: Build Windows (Release)
+        run: flutter build windows --release
+
+      - name: Show build output
+        run: Get-ChildItem -Recurse build\windows\x64\runner\Release
+        shell: pwsh
+
+      - name: Zip Windows build
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath build\windows-release.zip -Force
+        shell: pwsh
+
+      - name: Show zip size
+        run: Get-Item build\windows-release.zip | Select-Object Name, @{Name="SizeMB";Expression={[math]::Round($_.Length/1MB, 2)}}
+        shell: pwsh
+
+      - name: Upload Windows ZIP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: build/windows-release.zip
+          retention-days: 30
