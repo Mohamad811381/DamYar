@@ -1,6 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
-import 'package:dam_yar/core/utils/services/local_notification_service.dart';
+import 'package:dam_yar/core/services/local_notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shamsi_date/shamsi_date.dart';
 import 'package:uuid/uuid.dart';

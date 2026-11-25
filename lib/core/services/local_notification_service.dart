@@ -24,8 +24,9 @@ class LocalNotificationService {
       return;
     }
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const darwinSettings = DarwinInitializationSettings();
 
     const initSettings = InitializationSettings(
@@ -35,11 +36,23 @@ class LocalNotificationService {
 
     await _plugin.initialize(settings: initSettings);
 
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.requestNotificationsPermission();
 
     _initialized = true;
+  }
+
+  Future<void> scheduleTestNotification() async {
+    final testTime = DateTime.now().add(const Duration(seconds: 10));
+    await scheduleReminder(
+      id: 999999,
+      title: 'تست یادآور دامداری',
+      body: 'سیستم یادآور آفلاین با موفقیت فعال است!',
+      scheduledDate: testTime,
+    );
   }
 
   Future<void> scheduleReminder({

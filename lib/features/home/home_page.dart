@@ -1,6 +1,6 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use
 
-import 'package:dam_yar/core/utils/services/local_notification_service.dart';
+import 'package:dam_yar/core/services/local_notification_service.dart';
 import 'package:dam_yar/features/finance/inventory_finance_page.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -383,6 +383,24 @@ class _HomePageState extends State<HomePage> {
                 onTap: () {
                   Navigator.of(context).pop();
                   _openInventoryFinancePage();
+                },
+              ),
+
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('تست یادآور (۱۰ ثانیه بعد)'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await widget.notificationService.scheduleTestNotification();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'یادآور آزمایشی تنظیم شد؛ گوشی را قفل کنید و ۱۰ ثانیه صبر کنید.',
+                      ),
+                    ),
+                  );
                 },
               ),
             ],
