@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:dam_yar/features/shared/livestock_dialogs.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -12,15 +13,13 @@ import '../../data/storage/local_storage_service.dart';
 
 class LivestockPage extends StatefulWidget {
   final LocalStorageService storageService;
-  final VoidCallback onAddAnimalTap;
-  final VoidCallback onAddGroupTap;
+  final int dataVersion;
   final VoidCallback onDataChanged;
 
   const LivestockPage({
     super.key,
     required this.storageService,
-    required this.onAddAnimalTap,
-    required this.onAddGroupTap,
+    required this.dataVersion,
     required this.onDataChanged,
   });
 
@@ -43,12 +42,22 @@ class _LivestockPageState extends State<LivestockPage> {
     _reload();
   }
 
+  void _loadData() {
+    _animals = widget.storageService.getAllAnimals();
+    _groups = widget.storageService.getAllGroups();
+    _healthRecords = widget.storageService.getAllHealthRecords();
+  }
+
   void _reload() {
-    setState(() {
-      _animals = widget.storageService.getAllAnimals();
-      _groups = widget.storageService.getAllGroups();
-      _healthRecords = widget.storageService.getAllHealthRecords();
-    });
+    setState(_loadData);
+  }
+
+  @override
+  void didUpdateWidget(covariant LivestockPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataVersion != widget.dataVersion) {
+      _loadData();
+    }
   }
 
   List<Animal> get _filteredAnimals {
@@ -373,11 +382,12 @@ class _LivestockPageState extends State<LivestockPage> {
           IconButton(
             onPressed: () async {
               if (_showGroupsTab) {
-                widget.onAddGroupTap();
+                await showAddGroupDialog(context, widget.storageService);
               } else {
-                widget.onAddAnimalTap();
+                await showAddAnimalDialog(context, widget.storageService);
               }
               _reload();
+              widget.onDataChanged();
             },
             icon: const Icon(Icons.add_rounded),
             tooltip: _showGroupsTab ? 'افزودن گروه' : 'افزودن دام',

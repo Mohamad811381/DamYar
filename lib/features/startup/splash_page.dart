@@ -1,11 +1,11 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:dam_yar/core/services/local_notification_service.dart';
+import 'package:dam_yar/features/navigation/main_shell.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/storage/local_storage_service.dart';
-import '../home/home_page.dart';
 import 'onboarding_page.dart';
 
 class SplashPage extends StatefulWidget {
@@ -37,7 +37,7 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted) return;
 
     final nextPage = widget.storageService.isOnboardingCompleted
-        ? HomePage(
+? MainShell(
             storageService: widget.storageService,
             notificationService: widget.notificationService,
           )

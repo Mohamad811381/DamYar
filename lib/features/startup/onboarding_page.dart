@@ -1,12 +1,12 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:dam_yar/core/services/local_notification_service.dart';
+import 'package:dam_yar/features/navigation/main_shell.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/livestock_enums.dart';
 import '../../data/storage/local_storage_service.dart';
-import '../home/home_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   final LocalStorageService storageService;
@@ -38,7 +38,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => HomePage(
+       builder: (_) => MainShell(
           storageService: widget.storageService,
           notificationService: widget.notificationService,
         ),

@@ -13,8 +13,6 @@
        theme
           app_theme.dart
        utils
-           services
-              local_notification_service.dart
            jalali_helper.dart
     data
        models
