@@ -27,6 +27,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   int _dataVersion = 0;
+  final Map<int, int> _refreshTokens = {};
 
   /// هر بار که یکی از صفحات داده را تغییر می‌دهد، این شمارنده بالا می‌رود
   /// تا بقیه صفحات در didUpdateWidget داده‌هایشان را دوباره بخوانند.
@@ -35,7 +36,12 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _selectTab(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      if (index == _currentIndex) {
+        _refreshTokens[index] = (_refreshTokens[index] ?? 0) + 1;
+      }
+      _currentIndex = index;
+    });
   }
 
   @override
@@ -45,20 +51,26 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: [
           HomePage(
+                        key: ValueKey('home-${_refreshTokens[0] ?? 0}'),
             storageService: widget.storageService,
             notificationService: widget.notificationService,
             dataVersion: _dataVersion,
+            refreshToken: _refreshTokens[0] ?? 0,
             onDataChanged: _onDataChanged,
             onSelectTab: _selectTab,
           ),
           LivestockPage(
+                        key: ValueKey('livestock-${_refreshTokens[1] ?? 0}'),
             storageService: widget.storageService,
             dataVersion: _dataVersion,
+            refreshToken: _refreshTokens[1] ?? 0,
             onDataChanged: _onDataChanged,
           ),
           InventoryFinancePage(
+                        key: ValueKey('finance-${_refreshTokens[2] ?? 0}'),
             storageService: widget.storageService,
             dataVersion: _dataVersion,
+            refreshToken: _refreshTokens[2] ?? 0,
             onDataChanged: _onDataChanged,
           ),
           QuickHealthPage(

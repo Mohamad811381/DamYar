@@ -14,12 +14,14 @@ import '../../data/storage/local_storage_service.dart';
 class LivestockPage extends StatefulWidget {
   final LocalStorageService storageService;
   final int dataVersion;
+  final int refreshToken;
   final VoidCallback onDataChanged;
 
   const LivestockPage({
     super.key,
     required this.storageService,
     required this.dataVersion,
+    this.refreshToken = 0,
     required this.onDataChanged,
   });
 
@@ -55,8 +57,9 @@ class _LivestockPageState extends State<LivestockPage> {
   @override
   void didUpdateWidget(covariant LivestockPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataVersion != widget.dataVersion) {
-      _loadData();
+    if (oldWidget.dataVersion != widget.dataVersion ||
+        oldWidget.refreshToken != widget.refreshToken) {
+      setState(_loadData);
     }
   }
 

@@ -37,8 +37,8 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
   final _notesController = TextEditingController();
   final Uuid _uuid = const Uuid();
 
-  late List<Animal> _animals;
-  late List<LivestockGroup> _groups;
+  List<Animal> _animals = [];
+  List<LivestockGroup> _groups = [];
 
   bool _isGroupTarget = false;
   String? _selectedAnimalId;
@@ -56,14 +56,21 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
       : null;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadLists();
+  }
+
+  void _loadLists() {
     _animals = widget.storageService.getAllAnimals();
     _groups = widget.storageService.getAllGroups();
 
-    if (_animals.isNotEmpty) _selectedAnimalId = _animals.first.id;
-    if (_groups.isNotEmpty) _selectedGroupId = _groups.first.id;
-    if (_animals.isEmpty && _groups.isNotEmpty) _isGroupTarget = true;
+    if (!_animals.any((a) => a.id == _selectedAnimalId)) {
+      _selectedAnimalId = _animals.isNotEmpty ? _animals.first.id : null;
+    }
+    if (!_groups.any((g) => g.id == _selectedGroupId)) {
+      _selectedGroupId = _groups.isNotEmpty ? _groups.first.id : null;
+    }
   }
 
   @override
@@ -110,6 +117,78 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
     return animal != null
         ? 'پلاک ${animal.tagNumber} (${animal.species.label})'
         : 'تک‌دام';
+  }
+
+  Future<void> _pickAnimal() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppTheme.cardWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+            itemCount: _animals.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (_, i) {
+              final a = _animals[i];
+              final selected = a.id == _selectedAnimalId;
+              return _PickTile(
+                title: 'پلاک ${a.tagNumber}',
+                subtitle: a.species.label,
+                selected: selected,
+                onTap: () => Navigator.of(ctx).pop(a.id),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _selectedAnimalId = picked);
+  }
+
+  Future<void> _pickGroup() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppTheme.cardWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+            itemCount: _groups.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (_, i) {
+              final g = _groups[i];
+              final selected = g.id == _selectedGroupId;
+              return _PickTile(
+                title: g.name,
+                subtitle: '${g.species.label} • حدود ${g.headCount} رأس',
+                selected: selected,
+                onTap: () => Navigator.of(ctx).pop(g.id),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _selectedGroupId = picked);
   }
 
   Future<void> _save() async {
@@ -222,51 +301,32 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
                         ),
                         const SizedBox(height: 12),
                         if (!_isGroupTarget && _animals.isNotEmpty)
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: _selectedAnimalId,
-                            decoration: const InputDecoration(
-                              labelText: 'شماره پلاک',
-                            ),
-                            items: _animals
+                          _PickField(
+                            label: 'شماره پلاک',
+                            icon: Icons.pets_rounded,
+                            value: _animals
+                                .where((a) => a.id == _selectedAnimalId)
                                 .map(
-                                  (a) => DropdownMenuItem<String>(
-                                    value: a.id,
-                                    child: Text(
+                                  (a) =>
                                       'پلاک ${a.tagNumber} — ${a.species.label}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
                                 )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedAnimalId = v),
+                                .firstOrNull,
+                            onTap: _pickAnimal,
                           ),
                         if (_isGroupTarget && _groups.isNotEmpty)
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: _selectedGroupId,
-                            decoration: const InputDecoration(
-                              labelText: 'نام گله',
-                            ),
-                            items: _groups
-                                .map(
-                                  (g) => DropdownMenuItem<String>(
-                                    value: g.id,
-                                    child: Text(
-                                      '${g.name} (${g.species.label})',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedGroupId = v),
+                          _PickField(
+                            label: 'انتخاب گله',
+                            icon: Icons.groups_rounded,
+                            value: _groups
+                                .where((g) => g.id == _selectedGroupId)
+                                .map((g) => '${g.name} (${g.species.label})')
+                                .firstOrNull,
+                            onTap: _pickGroup,
                           ),
                         if (hasNoTarget) ...[
                           const SizedBox(height: 10),
                           const _Notice(
-                            text: 'هنوز دام یا گله‌ای ثبت نشده. این کار بدون پلاک یا گله ذخیره می‌شود.',
+                            text: 'هنوز گله‌ای ثبت نشده. از بخش دام‌ها، با دکمه + یک گله بساز.',
                           ),
                         ],
                       ],
@@ -472,44 +532,47 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardWhite,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: AppTheme.cardWhite,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
                 ),
-                child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textDark,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textDark,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
+              ],
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -850,6 +913,129 @@ class _JalaliCalendarState extends State<_JalaliCalendar> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickField extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String? value;
+  final VoidCallback onTap;
+
+  const _PickField({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.surfaceLight,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, color: AppTheme.primaryGreen, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value ?? 'انتخاب کنید',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.unfold_more_rounded, color: AppTheme.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PickTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PickTile({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? AppTheme.primaryGreen.withValues(alpha: 0.12)
+          : AppTheme.surfaceLight,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppTheme.primaryGreen,
+                  size: 26,
+                ),
+            ],
+          ),
         ),
       ),
     );

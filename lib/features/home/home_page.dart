@@ -16,6 +16,7 @@ class HomePage extends StatefulWidget {
   final LocalStorageService storageService;
   final LocalNotificationService notificationService;
   final int dataVersion;
+  final int refreshToken;
   final VoidCallback onDataChanged;
   final ValueChanged<int> onSelectTab;
 
@@ -24,6 +25,7 @@ class HomePage extends StatefulWidget {
     required this.storageService,
     required this.notificationService,
     required this.dataVersion,
+    this.refreshToken = 0,
     required this.onDataChanged,
     required this.onSelectTab,
   });
@@ -59,7 +61,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataVersion != widget.dataVersion) {
+    if (oldWidget.dataVersion != widget.dataVersion ||
+        oldWidget.refreshToken != widget.refreshToken) {
       _refreshData();
     }
   }

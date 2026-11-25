@@ -11,13 +11,14 @@ import '../../data/storage/local_storage_service.dart';
 class InventoryFinancePage extends StatefulWidget {
   final LocalStorageService storageService;
   final int dataVersion;
+    final int refreshToken;
   final VoidCallback onDataChanged;
 
   const InventoryFinancePage({
     super.key,
     required this.storageService,
     required this.dataVersion,
-    required this.onDataChanged,
+    this.refreshToken = 0,    required this.onDataChanged,
   });
 
   @override
@@ -48,8 +49,8 @@ class _InventoryFinancePageState extends State<InventoryFinancePage> {
   @override
   void didUpdateWidget(covariant InventoryFinancePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataVersion != widget.dataVersion) {
-      _loadData();
+    if (oldWidget.dataVersion != widget.dataVersion ||
+        oldWidget.refreshToken != widget.refreshToken) {      _loadData();
     }
   }
 
