@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: unnecessary_brace_in_string_interps, deprecated_member_use
 
 import 'package:flutter/material.dart';
 
@@ -10,12 +10,14 @@ class QuickHealthPage extends StatelessWidget {
   final LocalStorageService storageService;
   final LocalNotificationService notificationService;
   final VoidCallback onSaved;
+  final int refreshToken;
 
   const QuickHealthPage({
     super.key,
     required this.storageService,
     required this.notificationService,
     required this.onSaved,
+    this.refreshToken = 0,
   });
 
   @override
@@ -29,6 +31,7 @@ class QuickHealthPage extends StatelessWidget {
       ),
       body: SafeArea(
         child: QuickHealthSheet(
+          key: ValueKey('quick-${refreshToken}'),
           storageService: storageService,
           notificationService: notificationService,
           onSaved: onSaved,

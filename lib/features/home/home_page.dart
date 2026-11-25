@@ -158,6 +158,15 @@ class _HomePageState extends State<HomePage> {
     if (ok == true) await _toggleReminder(task);
   }
 
+  HealthRecord? _recordOf(ReminderTask task) {
+    final id = task.relatedRecordId;
+    if (id == null) return null;
+    for (final r in widget.storageService.getAllHealthRecords()) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
   void _openTaskDetails(ReminderTask task) {
     showModalBottomSheet<void>(
       context: context,
@@ -214,8 +223,27 @@ class _HomePageState extends State<HomePage> {
                 label: 'موعد',
                 value: JalaliHelper.formatReadable(task.dueDate),
               ),
-              if (task.description != null && task.description!.isNotEmpty)
-                _DetailLine(label: 'توضیح', value: task.description!),
+              if (_recordOf(task) case final r?) ...[
+                _DetailLine(label: 'نوع کار', value: r.actionType.label),
+                _DetailLine(
+                  label: 'تاریخ انجام قبلی',
+                  value: JalaliHelper.formatReadable(r.administeredAt),
+                ),
+                if (r.dosage != null && r.dosage!.isNotEmpty)
+                  _DetailLine(label: 'مقدار دوز', value: '${r.dosage} سی‌سی'),
+                if (r.milkWithdrawalDays > 0)
+                  _DetailLine(
+                    label: 'منع شیر',
+                    value: '${r.milkWithdrawalDays} روز',
+                  ),
+                if (r.meatWithdrawalDays > 0)
+                  _DetailLine(
+                    label: 'منع گوشت',
+                    value: '${r.meatWithdrawalDays} روز',
+                  ),
+                if (r.notes != null && r.notes!.isNotEmpty)
+                  _DetailLine(label: 'یادداشت', value: r.notes!),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 height: 52,
@@ -345,6 +373,10 @@ class _HomePageState extends State<HomePage> {
         .toList();
     final recentRecords = _records.take(5).toList();
 
+    final upcomingTasks = _reminders
+        .where((r) => !r.isCompleted && !_isDueToday(r))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -469,6 +501,22 @@ class _HomePageState extends State<HomePage> {
                   onOpenDetails: () => _openTaskDetails(task),
                 ),
               ),
+
+            if (upcomingTasks.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const _SectionTitle(title: 'کارهای بعدی'),
+              const SizedBox(height: 10),
+              ...upcomingTasks.map(
+                (task) => _TaskRow(
+                  title: task.title,
+                  subtitle:
+                      '${_subtitleFor(task)} • ${JalaliHelper.formatReadable(task.dueDate)}',
+                  onDone: () => _confirmDone(task),
+                  onOpenDetails: () => _openTaskDetails(task),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 24),
             const _SectionTitle(title: 'آخرین ثبت‌ها'),
             const SizedBox(height: 10),

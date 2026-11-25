@@ -51,7 +51,7 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: [
           HomePage(
-                        key: ValueKey('home-${_refreshTokens[0] ?? 0}'),
+            key: ValueKey('home-${_refreshTokens[0] ?? 0}'),
             storageService: widget.storageService,
             notificationService: widget.notificationService,
             dataVersion: _dataVersion,
@@ -60,23 +60,24 @@ class _MainShellState extends State<MainShell> {
             onSelectTab: _selectTab,
           ),
           LivestockPage(
-                        key: ValueKey('livestock-${_refreshTokens[1] ?? 0}'),
+            key: ValueKey('livestock-${_refreshTokens[1] ?? 0}'),
             storageService: widget.storageService,
             dataVersion: _dataVersion,
             refreshToken: _refreshTokens[1] ?? 0,
             onDataChanged: _onDataChanged,
           ),
           InventoryFinancePage(
-                        key: ValueKey('finance-${_refreshTokens[2] ?? 0}'),
+            key: ValueKey('finance-${_refreshTokens[2] ?? 0}'),
             storageService: widget.storageService,
             dataVersion: _dataVersion,
             refreshToken: _refreshTokens[2] ?? 0,
             onDataChanged: _onDataChanged,
           ),
-          QuickHealthPage(
+                  QuickHealthPage(
             storageService: widget.storageService,
             notificationService: widget.notificationService,
             onSaved: _onDataChanged,
+            refreshToken: _dataVersion + (_refreshTokens[3] ?? 0),
           ),
         ],
       ),

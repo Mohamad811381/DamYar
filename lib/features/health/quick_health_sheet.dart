@@ -35,6 +35,8 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
   final _titleController = TextEditingController();
   final _dosageController = TextEditingController();
   final _notesController = TextEditingController();
+  static const int _maxRepeats = 5;
+  final List<DateTime> _repeatDates = [];
   final Uuid _uuid = const Uuid();
 
   List<Animal> _animals = [];
@@ -45,15 +47,12 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
   String? _selectedGroupId;
   HealthActionType _actionType = HealthActionType.vaccine;
   DateTime _administeredAt = DateTime.now();
+
+  bool _isPlanned = false;
   bool _enableReminder = true;
-  int _repeatDays = 0;
   int _milkDays = 0;
   int _meatDays = 0;
   bool _isSaving = false;
-
-  DateTime? get _nextReminderDate => _repeatDays > 0
-      ? JalaliHelper.addDays(_administeredAt, _repeatDays)
-      : null;
 
   @override
   void didChangeDependencies() {
@@ -82,11 +81,12 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
   }
 
   void _resetForm() {
+    _repeatDates.clear();
+    _isPlanned = false;
     _titleController.clear();
     _dosageController.clear();
     _notesController.clear();
     _administeredAt = DateTime.now();
-    _repeatDays = 0;
     _milkDays = 0;
     _meatDays = 0;
   }
@@ -106,17 +106,6 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
       builder: (_) => _JalaliCalendar(initialDate: initialDate),
     );
     if (picked != null) onPicked(picked);
-  }
-
-  String _targetSummaryLabel() {
-    if (_isGroupTarget) {
-      final group = _groups.where((g) => g.id == _selectedGroupId).firstOrNull;
-      return group != null ? 'گله: ${group.name}' : 'گله';
-    }
-    final animal = _animals.where((a) => a.id == _selectedAnimalId).firstOrNull;
-    return animal != null
-        ? 'پلاک ${animal.tagNumber} (${animal.species.label})'
-        : 'تک‌دام';
   }
 
   Future<void> _pickAnimal() async {
@@ -191,6 +180,17 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
     if (picked != null) setState(() => _selectedGroupId = picked);
   }
 
+  void _addRepeat() {
+    if (_repeatDates.length >= _maxRepeats) return;
+    setState(() {
+      _repeatDates.add(_administeredAt);
+    });
+  }
+
+  void _removeRepeat(int index) {
+    setState(() => _repeatDates.removeAt(index));
+  }
+
   Future<void> _save() async {
     if (_isSaving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -202,7 +202,45 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
       final title = _titleController.text.trim();
       final dosageText = _dosageController.text.trim();
       final notesText = _notesController.text.trim();
+      final notifId = DateTime.now().millisecondsSinceEpoch.remainder(
+        1000000000,
+      );
 
+      // حالت برنامه‌ریزی: کار هنوز انجام نشده، فقط یادآور ساخته می‌شود
+      if (_isPlanned) {
+        final planned = ReminderTask(
+          id: _uuid.v4(),
+          notificationId: notifId,
+          title: '${_actionType.label}: $title',
+          description: null,
+
+          dueDate: _administeredAt,
+          isCompleted: false,
+          animalId: _isGroupTarget ? null : _selectedAnimalId,
+          groupId: _isGroupTarget ? _selectedGroupId : null,
+          createdAt: now,
+        );
+
+        await widget.storageService.upsertReminder(planned);
+        await widget.notificationService.scheduleReminder(
+          id: notifId,
+          title: planned.title,
+          body: planned.description ?? 'زمان انجام کار فرا رسیده است.',
+          scheduledDate: _administeredAt,
+        );
+
+        widget.onSaved();
+        if (!mounted) return;
+        setState(_resetForm);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('کار برای تاریخ انتخابی برنامه‌ریزی شد.'),
+          ),
+        );
+        return;
+      }
+
+      // حالت انجام‌شده: سابقه ثبت می‌شود و یادآور تکرار ساخته می‌شود
       final record = HealthRecord(
         id: recordId,
         actionType: _actionType,
@@ -219,32 +257,32 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
 
       await widget.storageService.addHealthRecord(record);
 
-      final reminderDate = _nextReminderDate;
-      if (_enableReminder && reminderDate != null) {
-        final notifId = DateTime.now().millisecondsSinceEpoch.remainder(
-          1000000000,
-        );
-        final reminder = ReminderTask(
-          id: _uuid.v4(),
-          notificationId: notifId,
-          title: 'تکرار ${_actionType.label}: $title',
-          description:
-              '${_targetSummaryLabel()} • انجام قبلی: ${JalaliHelper.formatShort(_administeredAt)}',
-          dueDate: reminderDate,
-          isCompleted: false,
-          relatedRecordId: recordId,
-          animalId: _isGroupTarget ? null : _selectedAnimalId,
-          groupId: _isGroupTarget ? _selectedGroupId : null,
-          createdAt: now,
-        );
-
-        await widget.storageService.upsertReminder(reminder);
-        await widget.notificationService.scheduleReminder(
-          id: notifId,
-          title: reminder.title,
-          body: reminder.description ?? 'زمان تکرار دارو یا واکسن است.',
-          scheduledDate: reminderDate,
-        );
+      if (_enableReminder) {
+        for (final date in _repeatDates) {
+          final rNotifId =
+              DateTime.now().millisecondsSinceEpoch.remainder(1000000000) +
+              _repeatDates.indexOf(date);
+          final reminder = ReminderTask(
+            id: _uuid.v4(),
+            notificationId: rNotifId,
+            title: 'تکرار ${_actionType.label}: $title',
+            description:
+                'انجام قبلی: ${JalaliHelper.formatShort(_administeredAt)}',
+            dueDate: date,
+            isCompleted: false,
+            relatedRecordId: recordId,
+            animalId: _isGroupTarget ? null : _selectedAnimalId,
+            groupId: _isGroupTarget ? _selectedGroupId : null,
+            createdAt: now,
+          );
+          await widget.storageService.upsertReminder(reminder);
+          await widget.notificationService.scheduleReminder(
+            id: rNotifId,
+            title: reminder.title,
+            body: reminder.description ?? 'زمان تکرار دارو یا واکسن است.',
+            scheduledDate: date,
+          );
+        }
       }
 
       widget.onSaved();
@@ -394,14 +432,38 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
                   const SizedBox(height: 12),
                   _SectionCard(
                     icon: Icons.calendar_month_rounded,
-                    title: 'تاریخ انجام کار',
-                    child: _DateTile(
-                      label: 'تاریخ انجام',
-                      date: _administeredAt,
-                      onTap: () => _pickDate(
-                        initialDate: _administeredAt,
-                        onPicked: (d) => setState(() => _administeredAt = d),
-                      ),
+                    title: 'زمان این کار',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment<bool>(
+                              value: false,
+                              label: Text('همین حالا انجام شد'),
+                              icon: Icon(Icons.check_circle_outline),
+                            ),
+                            ButtonSegment<bool>(
+                              value: true,
+                              label: Text('برای تاریخ آینده'),
+                              icon: Icon(Icons.event_rounded),
+                            ),
+                          ],
+                          selected: {_isPlanned},
+                          onSelectionChanged: (s) =>
+                              setState(() => _isPlanned = s.first),
+                        ),
+                        const SizedBox(height: 12),
+                        _DateTile(
+                          label: _isPlanned ? 'تاریخ انجام کار' : 'تاریخ انجام',
+                          date: _administeredAt,
+                          onTap: () => _pickDate(
+                            initialDate: _administeredAt,
+                            onPicked: (d) =>
+                                setState(() => _administeredAt = d),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -422,39 +484,48 @@ class _QuickHealthSheetState extends State<QuickHealthSheet> {
                         ),
                         if (_enableReminder) ...[
                           const SizedBox(height: 8),
-                          _DaysStepper(
-                            label: 'تکرار بعد از',
-                            value: _repeatDays,
-                            min: 0,
-                            onChanged: (v) => setState(() => _repeatDays = v),
-                          ),
-                          if (_repeatDays == 0)
+                          for (var i = 0; i < _repeatDates.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _DateTile(
+                                      label: 'تکرار ${i + 1}',
+                                      date: _repeatDates[i],
+                                      onTap: () => _pickDate(
+                                        initialDate: _repeatDates[i],
+                                        onPicked: (d) =>
+                                            setState(() => _repeatDates[i] = d),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton.filledTonal(
+                                    tooltip: 'حذف این تکرار',
+                                    onPressed: () => _removeRepeat(i),
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (_repeatDates.length < _maxRepeats)
+                            OutlinedButton.icon(
+                              onPressed: _addRepeat,
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('افزودن تکرار'),
+                            ),
+                          if (_repeatDates.isEmpty)
                             const Padding(
-                              padding: EdgeInsets.only(top: 8, bottom: 4),
+                              padding: EdgeInsets.only(top: 8),
                               child: Text(
-                                'تعداد روز تا نوبت بعدی را انتخاب کنید.',
+                                'اگر تکرار لازم است، دکمه «افزودن تکرار» را بزنید (حداکثر ۵ بار).',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: AppTheme.textMuted,
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 12),
-                          _DateTile(
-                            label: 'موعد یادآور',
-                            date: _nextReminderDate ?? _administeredAt,
-                            onTap: () => _pickDate(
-                              initialDate: _nextReminderDate ?? _administeredAt,
-                              onPicked: (d) {
-                                final diff = d
-                                    .difference(_administeredAt)
-                                    .inDays;
-                                setState(() {
-                                  _repeatDays = diff < 1 ? 1 : diff;
-                                });
-                              },
-                            ),
-                          ),
                         ],
                       ],
                     ),
